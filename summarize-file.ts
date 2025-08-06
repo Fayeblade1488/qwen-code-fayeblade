@@ -131,9 +131,17 @@ export class SummarizeFileTool extends BaseTool<SummarizeFileToolParams, ToolRes
         }
     }
 
-    const summary = await contentGenerator.generateContent([
-        {role: 'user', parts: [{text: `Please summarize the following file content:\n\n${result.llmContent}`}]}
-    ]);
+    let summary;
+    try {
+        summary = await contentGenerator.generateContent([
+            {role: 'user', parts: [{text: `Please summarize the following file content:\n\n${result.llmContent}`}]}
+        ]);
+    } catch (error) {
+        return {
+            llmContent: 'Failed to summarize file content. Please try again later.',
+            returnDisplay: 'Failed to summarize file content. Please try again later.',
+        };
+    }
 
     const mimetype = getSpecificMimeType(params.absolute_path);
     recordFileOperationMetric(
