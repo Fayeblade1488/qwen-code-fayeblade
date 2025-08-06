@@ -162,8 +162,9 @@ describe('loggers', () => {
       } as unknown as Config;
       const event = new UserPromptEvent(
         11,
-        'test-prompt',
+        'prompt-id-8',
         AuthType.CLOUD_SHELL,
+        undefined,
       );
 
       logUserPrompt(mockConfig, event);
