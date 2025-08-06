@@ -242,7 +242,6 @@ export async function processSingleFileContent(
         };
       }
       case 'svg': {
-        const SVG_MAX_SIZE_BYTES = 1 * 1024 * 1024;
         if (stats.size > SVG_MAX_SIZE_BYTES) {
           return {
             llmContent: `Cannot display content of SVG file larger than 1MB: ${relativePathForDisplay}`,
