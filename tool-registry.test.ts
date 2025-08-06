@@ -401,8 +401,8 @@ describe('sanitizeParameters', () => {
     };
     sanitizeParameters(schema);
     expect(schema.properties!.prop1.items!.default).toBeUndefined();
-    const nestedProp =
-      schema.properties!.prop2.anyOf![0].properties!.nestedProp;
+    const {nestedProp} = schema.properties!.prop2.anyOf![0].properties!;
+
     expect(nestedProp?.default).toBeUndefined();
   });
 
