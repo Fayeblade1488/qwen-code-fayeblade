@@ -218,7 +218,7 @@ export async function processSingleFileContent(
 
     const fileSizeInBytes = stats.size;
     // 20MB limit
-    const maxFileSize = 20 * 1024 * 1024;
+    const maxFileSize = MAX_FILE_SIZE_BYTES;
 
     if (fileSizeInBytes > maxFileSize) {
       throw new Error(
