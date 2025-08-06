@@ -98,11 +98,21 @@ export class ReadFileTool extends BaseTool<ReadFileToolParams, ToolResult> {
     if (!isWithinRoot(filePath, this.config.getTargetDir())) {
       return `File path must be within the root directory (${this.config.getTargetDir()}): ${filePath}`;
     }
-    if (params.offset !== undefined && params.offset < 0) {
-      return 'Offset must be a non-negative number';
+    if (params.offset !== undefined) {
+      if (params.offset < 0) {
+        return 'Offset must be a non-negative number';
+      }
+      if (!Number.isInteger(params.offset)) {
+        return 'Offset must be an integer';
+      }
     }
-    if (params.limit !== undefined && params.limit <= 0) {
-      return 'Limit must be a positive number';
+    if (params.limit !== undefined) {
+      if (params.limit <= 0) {
+        return 'Limit must be a positive number';
+      }
+      if (!Number.isInteger(params.limit)) {
+        return 'Limit must be an integer';
+      }
     }
 
     const fileService = this.config.getFileService();
