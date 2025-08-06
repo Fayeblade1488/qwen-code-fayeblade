@@ -68,7 +68,7 @@ export function isBinaryFile(filePath: string): boolean {
       fs.closeSync(fd);
       return false;
     }
-    const bufferSize = Math.min(4096, fileSize);
+    const bufferSize = Math.min(BINARY_DETECTION_BUFFER_SIZE, fileSize);
     const buffer = Buffer.alloc(bufferSize);
     const bytesRead = fs.readSync(fd, buffer, 0, buffer.length, 0);
     fs.closeSync(fd);
