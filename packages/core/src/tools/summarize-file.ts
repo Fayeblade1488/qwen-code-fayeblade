@@ -126,9 +126,10 @@ export class SummarizeFileTool extends BaseTool<SummarizeFileToolParams, ToolRes
 
     const contentGenerator = this.config.getContentGenerator();
     if (!contentGenerator) {
+        const errorMsg = 'Content generator is not available. This may be due to a misconfiguration, missing dependencies, or a failed initialization. Please check your configuration settings and ensure all required dependencies are installed and properly set up.';
         return {
-            llmContent: 'Content generator not available.',
-            returnDisplay: 'Content generator not available.',
+            llmContent: errorMsg,
+            returnDisplay: errorMsg,
         }
     }
 
