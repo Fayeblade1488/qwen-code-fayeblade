@@ -356,7 +356,7 @@ export async function processSingleFileContent(
  */
 function extractRelevantSnippets(lines: string[], contextLines = 3): string[] {
   const keywords = RELEVANT_KEYWORDS;
-  const definitionRegex = /^(class|function|def|public|private|protected)\s+/;
+  const definitionRegex = DEFINITION_REGEX;
 
   const relevantIndexes = new Set<number>();
 
