@@ -370,7 +370,7 @@ function extractRelevantSnippets(lines: string[], contextLines = 3): string[] {
 
   if (relevantIndexes.size === 0) {
     // If no relevant lines found, return the first and last N lines
-    const n = 10;
+    const n = DEFAULT_FALLBACK_LINES;
     if (lines.length <= 2 * n) {
       return lines;
     }
