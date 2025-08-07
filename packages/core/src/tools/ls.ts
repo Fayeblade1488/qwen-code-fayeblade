@@ -33,6 +33,11 @@ export interface LSToolParams {
     respect_git_ignore?: boolean;
     respect_gemini_ignore?: boolean;
   };
+
+  /**
+   * Whether to return only filenames without additional metadata (optional)
+   */
+  name_only?: boolean;
 }
 
 /**
@@ -107,6 +112,11 @@ export class LSTool extends BaseTool<LSToolParams, ToolResult> {
                 type: Type.BOOLEAN,
               },
             },
+          },
+          name_only: {
+            description:
+              'Optional: Whether to return only filenames without additional metadata like size and modification time. Defaults to false.',
+            type: Type.BOOLEAN,
           },
         },
         required: ['path'],
@@ -295,9 +305,18 @@ export class LSTool extends BaseTool<LSToolParams, ToolResult> {
       });
 
       // Create formatted content for LLM
-      const directoryContent = entries
-        .map((entry) => `${entry.isDirectory ? '[DIR] ' : ''}${entry.name}`)
-        .join('\n');
+      let directoryContent;
+      if (params.name_only) {
+        // Return only filenames
+        directoryContent = entries
+          .map((entry) => entry.name)
+          .join('\n');
+      } else {
+        // Return with directory indicators and full info
+        directoryContent = entries
+          .map((entry) => `${entry.isDirectory ? '[DIR] ' : ''}${entry.name}`)
+          .join('\n');
+      }
 
       let resultMessage = `Directory listing for ${params.path}:\n${directoryContent}`;
       const ignoredMessages = [];

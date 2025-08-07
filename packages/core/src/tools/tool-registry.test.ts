@@ -185,6 +185,16 @@ describe('ToolRegistry', () => {
       toolRegistry.registerTool(tool);
       expect(toolRegistry.getTool('mock-tool')).toBe(tool);
     });
+
+    it('should register the SummarizeFileTool', async () => {
+      // This test checks that the SummarizeFileTool can be imported and registered
+      const { SummarizeFileTool } = await import('./summarize-file.js');
+      const tool = new SummarizeFileTool(config);
+      toolRegistry.registerTool(tool);
+      expect(toolRegistry.getTool('summarize_file')).toBe(tool);
+      expect(tool.name).toBe('summarize_file');
+      expect(tool.displayName).toBe('SummarizeFile');
+    });
   });
 
   describe('getAllTools', () => {
