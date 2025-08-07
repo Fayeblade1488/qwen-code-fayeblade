@@ -355,7 +355,7 @@ export async function processSingleFileContent(
  * @returns An array of strings representing the snippets.
  */
 function extractRelevantSnippets(lines: string[], contextLines = 3): string[] {
-  const keywords = ['TODO', 'FIXME', 'HACK', 'NOTE', 'REVIEW'];
+  const keywords = RELEVANT_KEYWORDS;
   const definitionRegex = /^(class|function|def|public|private|protected)\s+/;
 
   const relevantIndexes = new Set<number>();
