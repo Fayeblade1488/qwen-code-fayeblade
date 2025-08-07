@@ -116,7 +116,8 @@ export class SummarizeFileTool extends BaseTool<SummarizeFileToolParams, ToolRes
       };
     }
 
-    if (typeof result.llmContent !== 'string') {
+    // Handle non-text files or unexpected result structure
+    if (!('llmContent' in result) || typeof result.llmContent !== 'string') {
         return {
             llmContent: 'Cannot summarize non-text files.',
             returnDisplay: 'Cannot summarize non-text files.',
