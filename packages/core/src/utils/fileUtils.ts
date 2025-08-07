@@ -204,11 +204,121 @@ export interface ProcessedFileReadResult {
 }
 
 /**
+ * Extracts relevant snippets from file content based on common patterns
+ * @param content The full file content
+ * @param filePath The file path for context
+ * @returns Extracted relevant snippets
+ */
+export function extractRelevantSnippets(content: string, filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  const lines = content.split('\n');
+  const relevantLines: string[] = [];
+  
+  // Language-specific snippet extraction
+  if (['.ts', '.js', '.tsx', '.jsx'].includes(ext)) {
+    // Extract exports, imports, function/class definitions
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (
+        line.startsWith('export ') ||
+        line.startsWith('import ') ||
+        line.match(/^(function|class|interface|type|const|let|var)\s+\w+/) ||
+        line.includes('// @') ||
+        line.includes('/** ')
+      ) {
+        relevantLines.push(lines[i]);
+        // Include next few lines for context if it's a function/class
+        if (line.match(/^(function|class|interface|type)/)) {
+          for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+            if (lines[j].trim() && !lines[j].trim().startsWith('//')) {
+              relevantLines.push(lines[j]);
+              if (lines[j].includes('{') || lines[j].includes(';')) break;
+            }
+          }
+        }
+      }
+    }
+  } else if (['.py'].includes(ext)) {
+    // Extract imports, class/function definitions, docstrings
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (
+        line.startsWith('import ') ||
+        line.startsWith('from ') ||
+        line.match(/^(def|class)\s+\w+/) ||
+        line.startsWith('"""') ||
+        line.startsWith("'''")
+      ) {
+        relevantLines.push(lines[i]);
+      }
+    }
+  } else if (['.java', '.c', '.cpp', '.h'].includes(ext)) {
+    // Extract includes, class/function definitions
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (
+        line.startsWith('#include') ||
+        line.startsWith('import ') ||
+        line.match(/^(public|private|protected|static)?\s*(class|interface|enum)/) ||
+        line.match(/^(public|private|protected|static)?\s*\w+\s+\w+\s*\(/) ||
+        line.startsWith('/**')
+      ) {
+        relevantLines.push(lines[i]);
+      }
+    }
+  } else {
+    // For other files, extract first 10 lines and any lines with keywords
+    for (let i = 0; i < Math.min(10, lines.length); i++) {
+      relevantLines.push(lines[i]);
+    }
+    // Add lines with common important patterns
+    for (let i = 10; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (
+        line.includes('TODO') ||
+        line.includes('FIXME') ||
+        line.includes('NOTE') ||
+        line.includes('WARNING') ||
+        line.match(/^#\s+/) // Markdown headers
+      ) {
+        relevantLines.push(lines[i]);
+      }
+    }
+  }
+  
+  // If no relevant snippets found, return first 20 lines
+  if (relevantLines.length === 0) {
+    return lines.slice(0, 20).join('\n');
+  }
+  
+  return relevantLines.join('\n');
+}
+
+/**
+ * Extracts snippets from content when snippets mode is enabled
+ * @param content The full file content
+ * @param filePath The file path for context
+ * @returns Processed content (either snippets or full content)
+ */
+export function extractSnippets(content: string, filePath: string): string {
+  const lines = content.split('\n');
+  
+  // For smaller files, return full content
+  if (lines.length <= 50) {
+    return content;
+  }
+  
+  // For larger files, extract relevant snippets
+  return extractRelevantSnippets(content, filePath);
+}
+
+/**
  * Reads and processes a single file, handling text, images, and PDFs.
  * @param filePath Absolute path to the file.
  * @param rootDirectory Absolute path to the project root for relative path display.
  * @param offset Optional offset for text files (0-based line number).
  * @param limit Optional limit for text files (number of lines to read).
+ * @param extractSnippetsMode Optional flag to extract only relevant snippets.
  * @returns ProcessedFileReadResult object.
  */
 export async function processSingleFileContent(
@@ -216,6 +326,7 @@ export async function processSingleFileContent(
   rootDirectory: string,
   offset?: number,
   limit?: number,
+  extractSnippetsMode?: boolean,
 ): Promise<ProcessedFileReadResult> {
   try {
     if (!fs.existsSync(filePath)) {
@@ -275,7 +386,13 @@ export async function processSingleFileContent(
         };
       }
       case 'text': {
-        const content = await fs.promises.readFile(filePath, 'utf8');
+        let content = await fs.promises.readFile(filePath, 'utf8');
+        
+        // If extractSnippetsMode is enabled, extract snippets before processing
+        if (extractSnippetsMode) {
+          content = extractSnippets(content, filePath);
+        }
+        
         const lines = content.split('\n');
         const originalLineCount = lines.length;
 
@@ -303,7 +420,9 @@ export async function processSingleFileContent(
         const isTruncated = contentRangeTruncated || linesWereTruncatedInLength;
 
         let llmTextContent = '';
-        if (contentRangeTruncated) {
+        if (extractSnippetsMode && originalLineCount > 50) {
+          llmTextContent += `[Relevant snippets extracted from ${originalLineCount} lines]\n`;
+        } else if (contentRangeTruncated) {
           llmTextContent += `[File content truncated: showing lines ${actualStartLine + 1}-${endLine} of ${originalLineCount} total lines. Use offset/limit parameters to view more.]\n`;
         } else if (linesWereTruncatedInLength) {
           llmTextContent += `[File content partially truncated: some lines exceeded maximum length of ${MAX_LINE_LENGTH_TEXT_FILE} characters.]\n`;
@@ -312,7 +431,9 @@ export async function processSingleFileContent(
 
         // By default, return nothing to streamline the common case of a successful read_file.
         let returnDisplay = '';
-        if (contentRangeTruncated) {
+        if (extractSnippetsMode && originalLineCount > 50) {
+          returnDisplay = `Extracted relevant snippets from ${relativePathForDisplay}`;
+        } else if (contentRangeTruncated) {
           returnDisplay = `Read lines ${
             actualStartLine + 1
           }-${endLine} of ${originalLineCount} from ${relativePathForDisplay}`;
