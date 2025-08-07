@@ -16,6 +16,7 @@ import {
 } from 'vitest';
 import * as fs from 'fs';
 import { EditTool } from '../tools/edit.js';
+import { ContentGenerator } from '../core/contentGenerator.js';
 
 // MOCKS
 let callCount = 0;
@@ -165,6 +166,7 @@ describe('editCorrector', () => {
     const abortSignal = new AbortController().signal;
 
     beforeEach(() => {
+      const mockContentGenerator = {} as ContentGenerator;
       mockToolRegistry = new ToolRegistry({} as Config) as Mocked<ToolRegistry>;
       const configParams = {
         apiKey: 'test-api-key',
@@ -607,6 +609,7 @@ describe('editCorrector', () => {
     const abortSignal = new AbortController().signal;
 
     beforeEach(() => {
+      const mockContentGenerator = {} as ContentGenerator;
       mockToolRegistry = new ToolRegistry({} as Config) as Mocked<ToolRegistry>;
       const configParams = {
         apiKey: 'test-api-key',

@@ -7,6 +7,7 @@
 import {
   AuthType,
   CompletedToolCall,
+  ContentGenerator,
   ContentGeneratorConfig,
   EditTool,
   ErroredToolCall,
@@ -409,6 +410,7 @@ describe('loggers', () => {
       getUserMemory: () => 'user-memory',
     } as unknown as Config;
 
+    const mockContentGenerator = {} as ContentGenerator;
     const mockGeminiClient = new GeminiClient(cfg2);
     const mockConfig = {
       getSessionId: () => 'test-session-id',
@@ -417,6 +419,7 @@ describe('loggers', () => {
       getUsageStatisticsEnabled: () => true,
       getTelemetryEnabled: () => true,
       getTelemetryLogPromptsEnabled: () => true,
+      getContentGenerator: () => mockContentGenerator,
     } as Config;
 
     const mockMetrics = {

@@ -8,6 +8,7 @@ import * as path from 'node:path';
 import process from 'node:process';
 import {
   AuthType,
+  ContentGenerator,
   ContentGeneratorConfig,
   createContentGeneratorConfig,
 } from '../core/contentGenerator.js';
@@ -44,6 +45,7 @@ import {
   DEFAULT_GEMINI_FLASH_MODEL,
 } from './models.js';
 import { ClearcutLogger } from '../telemetry/clearcut-logger/clearcut-logger.js';
+import { SummarizeFileTool } from '../tools/summarize-file.js';
 
 export enum ApprovalMode {
   DEFAULT = 'default',
@@ -160,6 +162,7 @@ export class Config {
   private toolRegistry!: ToolRegistry;
   private readonly sessionId: string;
   private contentGeneratorConfig!: ContentGeneratorConfig;
+  private contentGenerator?: ContentGenerator;
   private readonly embeddingModel: string;
   private readonly sandbox: SandboxConfig | undefined;
   private readonly targetDir: string;
@@ -299,6 +302,7 @@ export class Config {
 
     this.geminiClient = new GeminiClient(this);
     await this.geminiClient.initialize(this.contentGeneratorConfig);
+    this.setContentGenerator(this.geminiClient.getContentGenerator());
 
     // Reset the session flag since we're explicitly changing auth and using default model
     this.modelSwitchedDuringSession = false;
@@ -310,6 +314,14 @@ export class Config {
 
   getContentGeneratorConfig(): ContentGeneratorConfig {
     return this.contentGeneratorConfig;
+  }
+
+  setContentGenerator(contentGenerator: ContentGenerator) {
+    this.contentGenerator = contentGenerator;
+  }
+
+  getContentGenerator(): ContentGenerator | undefined {
+    return this.contentGenerator;
   }
 
   getModel(): string {
@@ -600,6 +612,7 @@ export class Config {
     registerCoreTool(ReadManyFilesTool, this);
     registerCoreTool(ShellTool, this);
     registerCoreTool(MemoryTool);
+    registerCoreTool(SummarizeFileTool, this);
     // registerCoreTool(WebSearchTool, this); // Temporarily disabled
 
     await registry.discoverTools();

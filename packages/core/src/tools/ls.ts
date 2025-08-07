@@ -31,6 +31,11 @@ export interface LSToolParams {
    * Whether to respect .gitignore patterns (optional, defaults to true)
    */
   respect_git_ignore?: boolean;
+
+  /**
+   * Whether to only return the names of the files and directories (optional)
+   */
+  name_only?: boolean;
 }
 
 /**
@@ -91,6 +96,11 @@ export class LSTool extends BaseTool<LSToolParams, ToolResult> {
           respect_git_ignore: {
             description:
               'Optional: Whether to respect .gitignore patterns when listing files. Only available in git repositories. Defaults to true.',
+            type: Type.BOOLEAN,
+          },
+          name_only: {
+            description:
+              'Optional: Whether to only return the names of the files and directories. Defaults to false.',
             type: Type.BOOLEAN,
           },
         },
@@ -257,6 +267,14 @@ export class LSTool extends BaseTool<LSToolParams, ToolResult> {
         if (!a.isDirectory && b.isDirectory) return 1;
         return a.name.localeCompare(b.name);
       });
+
+      if (params.name_only) {
+        const names = entries.map((entry) => entry.name);
+        return {
+            llmContent: names.join('\n'),
+            returnDisplay: `Listed ${names.length} item(s).`,
+        };
+      }
 
       // Create formatted content for LLM
       const directoryContent = entries

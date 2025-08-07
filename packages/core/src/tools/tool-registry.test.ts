@@ -30,6 +30,7 @@ import {
   Schema,
 } from '@google/genai';
 import { spawn } from 'node:child_process';
+import { ContentGenerator } from '../core/contentGenerator.js';
 
 // Use vi.hoisted to define the mock function so it can be used in the vi.mock factory
 const mockDiscoverMcpTools = vi.hoisted(() => vi.fn());
@@ -138,9 +139,11 @@ describe('ToolRegistry', () => {
   let config: Config;
   let toolRegistry: ToolRegistry;
   let mockConfigGetToolDiscoveryCommand: ReturnType<typeof vi.spyOn>;
+  let mockContentGenerator: ContentGenerator;
 
   beforeEach(() => {
     config = new Config(baseConfigParams);
+    mockContentGenerator = {} as ContentGenerator;
     toolRegistry = new ToolRegistry(config);
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});

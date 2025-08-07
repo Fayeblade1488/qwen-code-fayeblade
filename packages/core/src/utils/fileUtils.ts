@@ -188,6 +188,7 @@ export interface ProcessedFileReadResult {
  * @param rootDirectory Absolute path to the project root for relative path display.
  * @param offset Optional offset for text files (0-based line number).
  * @param limit Optional limit for text files (number of lines to read).
+ * @param extractSnippets Optional flag to extract relevant snippets from text files.
  * @returns ProcessedFileReadResult object.
  */
 export async function processSingleFileContent(
@@ -195,6 +196,7 @@ export async function processSingleFileContent(
   rootDirectory: string,
   offset?: number,
   limit?: number,
+  extractSnippets = false,
 ): Promise<ProcessedFileReadResult> {
   try {
     if (!fs.existsSync(filePath)) {
@@ -257,6 +259,16 @@ export async function processSingleFileContent(
         const content = await fs.promises.readFile(filePath, 'utf8');
         const lines = content.split('\n');
         const originalLineCount = lines.length;
+
+        if (extractSnippets) {
+          const snippets = extractRelevantSnippets(lines);
+          return {
+            llmContent: snippets.join('\n'),
+            returnDisplay: `(snippets from ${originalLineCount} lines)`,
+            isTruncated: true,
+            originalLineCount,
+          };
+        }
 
         const startLine = offset || 0;
         const effectiveLimit =
@@ -334,4 +346,48 @@ export async function processSingleFileContent(
       error: `Error reading file ${filePath}: ${errorMessage}`,
     };
   }
+}
+
+/**
+ * Extracts relevant snippets from a file's content.
+ * @param lines An array of strings, where each string is a line from the file.
+ * @param contextLines The number of lines to include before and after a relevant line.
+ * @returns An array of strings representing the snippets.
+ */
+function extractRelevantSnippets(lines: string[], contextLines = 3): string[] {
+  const keywords = ['TODO', 'FIXME', 'HACK', 'NOTE', 'REVIEW'];
+  const definitionRegex = /^(class|function|def|public|private|protected)\s+/;
+
+  const relevantIndexes = new Set<number>();
+
+  lines.forEach((line, index) => {
+    if (keywords.some(keyword => line.includes(keyword)) || definitionRegex.test(line)) {
+      for (let i = Math.max(0, index - contextLines); i <= Math.min(lines.length - 1, index + contextLines); i++) {
+        relevantIndexes.add(i);
+      }
+    }
+  });
+
+  if (relevantIndexes.size === 0) {
+    // If no relevant lines found, return the first and last N lines
+    const n = 10;
+    if (lines.length <= 2 * n) {
+      return lines;
+    }
+    return [...lines.slice(0, n), '...', ...lines.slice(lines.length - n)];
+  }
+
+  const sortedIndexes = Array.from(relevantIndexes).sort((a, b) => a - b);
+  const snippets: string[] = [];
+  let lastIndex = -1;
+
+  sortedIndexes.forEach(index => {
+    if (lastIndex !== -1 && index > lastIndex + 1) {
+      snippets.push('...');
+    }
+    snippets.push(lines[index]);
+    lastIndex = index;
+  });
+
+  return snippets;
 }

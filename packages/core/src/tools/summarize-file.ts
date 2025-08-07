@@ -21,62 +21,32 @@ import {
 } from '../telemetry/metrics.js';
 
 /**
- * Parameters for the ReadFile tool
+ * Parameters for the SummarizeFile tool
  */
-export interface ReadFileToolParams {
+export interface SummarizeFileToolParams {
   /**
-   * The absolute path to the file to read
+   * The absolute path to the file to summarize
    */
   absolute_path: string;
-
-  /**
-   * The line number to start reading from (optional)
-   */
-  offset?: number;
-
-  /**
-   * The number of lines to read (optional)
-   */
-  limit?: number;
-
-  /**
-   * Whether to extract relevant snippets from the file (optional)
-   */
-  snippets?: boolean;
 }
 
 /**
- * Implementation of the ReadFile tool logic
+ * Implementation of the SummarizeFile tool logic
  */
-export class ReadFileTool extends BaseTool<ReadFileToolParams, ToolResult> {
-  static readonly Name: string = 'read_file';
+export class SummarizeFileTool extends BaseTool<SummarizeFileToolParams, ToolResult> {
+  static readonly Name: string = 'summarize_file';
 
   constructor(private config: Config) {
     super(
-      ReadFileTool.Name,
-      'ReadFile',
-      'Reads and returns the content of a specified file from the local filesystem. Handles text, images (PNG, JPG, GIF, WEBP, SVG, BMP), and PDF files. For text files, it can read specific line ranges or extract relevant snippets.',
+      SummarizeFileTool.Name,
+      'SummarizeFile',
+      'Summarizes the content of a specified file from the local filesystem.',
       {
         properties: {
           absolute_path: {
             description:
-              "The absolute path to the file to read (e.g., '/home/user/project/file.txt'). Relative paths are not supported. You must provide an absolute path.",
+              "The absolute path to the file to summarize (e.g., '/home/user/project/file.txt'). Relative paths are not supported. You must provide an absolute path.",
             type: Type.STRING,
-          },
-          offset: {
-            description:
-              "Optional: For text files, the 0-based line number to start reading from. Requires 'limit' to be set. Use for paginating through large files.",
-            type: Type.NUMBER,
-          },
-          limit: {
-            description:
-              "Optional: For text files, maximum number of lines to read. Use with 'offset' to paginate through large files. If omitted, reads the entire file (if feasible, up to a default limit).",
-            type: Type.NUMBER,
-          },
-          snippets: {
-            description:
-              'Optional: For text files, whether to extract relevant snippets from the file. Defaults to false.',
-            type: Type.BOOLEAN,
           },
         },
         required: ['absolute_path'],
@@ -85,7 +55,7 @@ export class ReadFileTool extends BaseTool<ReadFileToolParams, ToolResult> {
     );
   }
 
-  validateToolParams(params: ReadFileToolParams): string | null {
+  validateToolParams(params: SummarizeFileToolParams): string | null {
     const errors = SchemaValidator.validate(this.schema.parameters, params);
     if (errors) {
       return errors;
@@ -98,12 +68,6 @@ export class ReadFileTool extends BaseTool<ReadFileToolParams, ToolResult> {
     if (!isWithinRoot(filePath, this.config.getTargetDir())) {
       return `File path must be within the root directory (${this.config.getTargetDir()}): ${filePath}`;
     }
-    if (params.offset !== undefined && params.offset < 0) {
-      return 'Offset must be a non-negative number';
-    }
-    if (params.limit !== undefined && params.limit <= 0) {
-      return 'Limit must be a positive number';
-    }
 
     const fileService = this.config.getFileService();
     if (fileService.shouldGeminiIgnoreFile(params.absolute_path)) {
@@ -113,7 +77,7 @@ export class ReadFileTool extends BaseTool<ReadFileToolParams, ToolResult> {
     return null;
   }
 
-  getDescription(params: ReadFileToolParams): string {
+  getDescription(params: SummarizeFileToolParams): string {
     if (
       !params ||
       typeof params.absolute_path !== 'string' ||
@@ -129,7 +93,7 @@ export class ReadFileTool extends BaseTool<ReadFileToolParams, ToolResult> {
   }
 
   async execute(
-    params: ReadFileToolParams,
+    params: SummarizeFileToolParams,
     _signal: AbortSignal,
   ): Promise<ToolResult> {
     const validationError = this.validateToolParams(params);
@@ -143,9 +107,6 @@ export class ReadFileTool extends BaseTool<ReadFileToolParams, ToolResult> {
     const result = await processSingleFileContent(
       params.absolute_path,
       this.config.getTargetDir(),
-      params.offset,
-      params.limit,
-      params.snippets,
     );
 
     if (result.error) {
@@ -155,22 +116,37 @@ export class ReadFileTool extends BaseTool<ReadFileToolParams, ToolResult> {
       };
     }
 
-    const lines =
-      typeof result.llmContent === 'string'
-        ? result.llmContent.split('\n').length
-        : undefined;
+    if (typeof result.llmContent !== 'string') {
+        return {
+            llmContent: 'Cannot summarize non-text files.',
+            returnDisplay: 'Cannot summarize non-text files.',
+        }
+    }
+
+    const contentGenerator = this.config.getContentGenerator();
+    if (!contentGenerator) {
+        return {
+            llmContent: 'Content generator not available.',
+            returnDisplay: 'Content generator not available.',
+        }
+    }
+
+    const summary = await contentGenerator.generateContent([
+        {role: 'user', parts: [{text: `Please summarize the following file content:\n\n${result.llmContent}`}]}
+    ]);
+
     const mimetype = getSpecificMimeType(params.absolute_path);
     recordFileOperationMetric(
       this.config,
       FileOperation.READ,
-      lines,
+      undefined,
       mimetype,
       path.extname(params.absolute_path),
     );
 
     return {
-      llmContent: result.llmContent,
-      returnDisplay: result.returnDisplay,
+      llmContent: summary.text(),
+      returnDisplay: `Successfully summarized file.`,
     };
   }
 }
